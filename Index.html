@@ -176,7 +176,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
   <div class="prog-card">
     <div class="prog-row">
-      <span class="prog-lbl">전체 진행률</span>
+      <span class="prog-lbl">권 진행률</span>
       <span class="prog-num"><span id="done-count">0</span> / 66권</span>
     </div>
     <div class="bar-bg"><div class="bar-fill" id="prog-bar" style="width:0%"></div></div>
@@ -184,6 +184,19 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="stat"><div class="stat-n" id="pct">0%</div><div class="stat-l">완료율</div></div>
       <div class="stat"><div class="stat-n" id="ot-d">0/39</div><div class="stat-l">구약</div></div>
       <div class="stat"><div class="stat-n" id="nt-d">0/27</div><div class="stat-l">신약</div></div>
+    </div>
+  </div>
+
+  <div class="prog-card">
+    <div class="prog-row">
+      <span class="prog-lbl">장 진행률</span>
+      <span class="prog-num"><span id="ch-done-count">0</span> / 1,189장</span>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="ch-prog-bar" style="width:0%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="stat-n" id="ch-pct">0%</div><div class="stat-l">완료율</div></div>
+      <div class="stat"><div class="stat-n" id="ch-ot-d">0/929</div><div class="stat-l">구약</div></div>
+      <div class="stat"><div class="stat-n" id="ch-nt-d">0/260</div><div class="stat-l">신약</div></div>
     </div>
   </div>
 
@@ -481,12 +494,26 @@ function renderMemos(){
 
 function updateStats(){
   const otB=BIBLE.OT.flatMap(s=>s.b),ntB=BIBLE.NT.flatMap(s=>s.b);
-  const total=[...otB,...ntB].filter(bookDone).length;
+  const allB=[...otB,...ntB];
+
+  // 권 통계
+  const total=allB.filter(bookDone).length;
   document.getElementById('done-count').textContent=total;
   document.getElementById('pct').textContent=Math.round(total/66*100)+'%';
   document.getElementById('prog-bar').style.width=Math.round(total/66*100)+'%';
   document.getElementById('ot-d').textContent=otB.filter(bookDone).length+'/39';
   document.getElementById('nt-d').textContent=ntB.filter(bookDone).length+'/27';
+
+  // 장 통계
+  const totalOTCh=929, totalNTCh=260, totalCh=1189;
+  const doneOTCh=otB.reduce((a,b)=>a+(chs[b]?.size||0),0);
+  const doneNTCh=ntB.reduce((a,b)=>a+(chs[b]?.size||0),0);
+  const doneCh=doneOTCh+doneNTCh;
+  document.getElementById('ch-done-count').textContent=doneCh.toLocaleString();
+  document.getElementById('ch-pct').textContent=Math.round(doneCh/totalCh*100)+'%';
+  document.getElementById('ch-prog-bar').style.width=Math.round(doneCh/totalCh*100)+'%';
+  document.getElementById('ch-ot-d').textContent=doneOTCh+'/929';
+  document.getElementById('ch-nt-d').textContent=doneNTCh+'/260';
 }
 
 function openModal(book){
