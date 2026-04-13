@@ -176,7 +176,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
   <div class="prog-card">
     <div class="prog-row">
-      <span class="prog-lbl">전체 진행률</span>
+      <span class="prog-lbl">권 진행률</span>
       <span class="prog-num"><span id="done-count">0</span> / 66권</span>
     </div>
     <div class="bar-bg"><div class="bar-fill" id="prog-bar" style="width:0%"></div></div>
@@ -184,6 +184,19 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="stat"><div class="stat-n" id="pct">0%</div><div class="stat-l">완료율</div></div>
       <div class="stat"><div class="stat-n" id="ot-d">0/39</div><div class="stat-l">구약</div></div>
       <div class="stat"><div class="stat-n" id="nt-d">0/27</div><div class="stat-l">신약</div></div>
+    </div>
+  </div>
+
+  <div class="prog-card">
+    <div class="prog-row">
+      <span class="prog-lbl">장 진행률</span>
+      <span class="prog-num"><span id="ch-done-count">0</span> / 1,189장</span>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="ch-prog-bar" style="width:0%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="stat-n" id="ch-pct">0%</div><div class="stat-l">완료율</div></div>
+      <div class="stat"><div class="stat-n" id="ch-ot-d">0/929</div><div class="stat-l">구약</div></div>
+      <div class="stat"><div class="stat-n" id="ch-nt-d">0/260</div><div class="stat-l">신약</div></div>
     </div>
   </div>
 
@@ -244,7 +257,32 @@ const HA = () => ({ 'apikey': SB_KEY, 'Content-Type': 'application/json' });
 
 let token = null;
 let userId = null;
-let rowId = null; // 현재 유저의 bible_data row id
+let rowId = null;
+
+/* ── AUTO LOGIN ── */
+async function tryAutoLogin() {
+  const saved = localStorage.getItem('bt_session');
+  if (!saved) return false;
+  try {
+    const s = JSON.parse(saved);
+    // refresh token으로 새 access token 발급
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST', headers: HA(),
+      body: JSON.stringify({ refresh_token: s.refresh_token })
+    });
+    if (!r.ok) { localStorage.removeItem('bt_session'); return false; }
+    const d = await r.json();
+    token = d.access_token;
+    userId = d.user.id;
+    localStorage.setItem('bt_session', JSON.stringify({ refresh_token: d.refresh_token }));
+    return true;
+  } catch(e) { return false; }
+}
+
+window.addEventListener('load', async () => {
+  const ok = await tryAutoLogin();
+  if (ok) await startApp();
+});
 
 /* ── AUTH ── */
 let authMode = 'login';
@@ -284,6 +322,7 @@ async function doAuth() {
     }
     token = d.access_token;
     userId = d.user.id;
+    localStorage.setItem('bt_session', JSON.stringify({ refresh_token: d.refresh_token }));
     await startApp();
   } catch(e) {
     errEl.textContent = e.message;
@@ -293,6 +332,7 @@ async function doAuth() {
 
 async function doLogout() {
   try { await fetch(`${SB_URL}/auth/v1/logout`, { method:'POST', headers: H() }); } catch(_) {}
+  localStorage.removeItem('bt_session');
   token = null; userId = null; rowId = null;
   chs={}; bMemo={}; cMemo={};
   document.getElementById('auth-screen').style.display = 'flex';
@@ -454,12 +494,26 @@ function renderMemos(){
 
 function updateStats(){
   const otB=BIBLE.OT.flatMap(s=>s.b),ntB=BIBLE.NT.flatMap(s=>s.b);
-  const total=[...otB,...ntB].filter(bookDone).length;
+  const allB=[...otB,...ntB];
+
+  // 권 통계
+  const total=allB.filter(bookDone).length;
   document.getElementById('done-count').textContent=total;
   document.getElementById('pct').textContent=Math.round(total/66*100)+'%';
   document.getElementById('prog-bar').style.width=Math.round(total/66*100)+'%';
   document.getElementById('ot-d').textContent=otB.filter(bookDone).length+'/39';
   document.getElementById('nt-d').textContent=ntB.filter(bookDone).length+'/27';
+
+  // 장 통계
+  const totalOTCh=929, totalNTCh=260, totalCh=1189;
+  const doneOTCh=otB.reduce((a,b)=>a+(chs[b]?.size||0),0);
+  const doneNTCh=ntB.reduce((a,b)=>a+(chs[b]?.size||0),0);
+  const doneCh=doneOTCh+doneNTCh;
+  document.getElementById('ch-done-count').textContent=doneCh.toLocaleString();
+  document.getElementById('ch-pct').textContent=Math.round(doneCh/totalCh*100)+'%';
+  document.getElementById('ch-prog-bar').style.width=Math.round(doneCh/totalCh*100)+'%';
+  document.getElementById('ch-ot-d').textContent=doneOTCh+'/929';
+  document.getElementById('ch-nt-d').textContent=doneNTCh+'/260';
 }
 
 function openModal(book){
